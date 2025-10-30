@@ -1,40 +1,37 @@
-# crm/models.py
 from django.db import models
-from django.core.validators import MinValueValidator
-from django.utils import timezone
+from django.core.validators import RegexValidator, MinValueValidator
 
 class Customer(models.Model):
     name = models.CharField(max_length=100)
     email = models.EmailField(unique=True)
-    phone = models.CharField(max_length=20, blank=True, null=True)
+    phone = models.CharField(
+        max_length=20, 
+        blank=True, 
+        validators=[RegexValidator(
+            regex=r'^(\+?\d{1,3})?[- ]?\d{3}[- ]?\d{3}[- ]?\d{4}$',
+            message="Phone number must be valid, e.g., +1234567890 or 123-456-7890"
+        )]
+    )
 
     def __str__(self):
-        return f"{self.name} ({self.email})"
-
+        return self.name
 
 class Product(models.Model):
     name = models.CharField(max_length=100)
-    price = models.DecimalField(
-        max_digits=10, decimal_places=2, validators=[MinValueValidator(0.01)]
-    )
+    price = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0.01)])
     stock = models.PositiveIntegerField(default=0)
 
     def __str__(self):
-        return f"{self.name} - ${self.price}"
-
+        return self.name
 
 class Order(models.Model):
-    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name="orders")
-    products = models.ManyToManyField(Product, related_name="orders")
-    order_date = models.DateTimeField(default=timezone.now)
-    total_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
+    products = models.ManyToManyField(Product)
+    order_date = models.DateTimeField(auto_now_add=True)
+    total_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
 
     def save(self, *args, **kwargs):
-        # compute total amount before saving
-        if not self.pk:  # only compute on creation
-            total = sum(p.price for p in self.products.all())
-            self.total_amount = total
+        # Calculate total_amount from associated products
+        total = sum(product.price for product in self.products.all())
+        self.total_amount = total
         super().save(*args, **kwargs)
-
-    def __str__(self):
-        return f"Order #{self.id} - {self.customer.name}"
