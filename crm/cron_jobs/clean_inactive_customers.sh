@@ -1,4 +1,3 @@
-
 #!/bin/bash
 # crm/cron_jobs/clean_inactive_customers.sh
 # Deletes customers with no orders in the last 365 days and logs the number removed.
